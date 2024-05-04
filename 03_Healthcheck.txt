@@ -1,0 +1,23 @@
+frontend http80
+        bind *:80
+        mode http80
+
+        acl headercheck1 hdr_end(Host) -i -m str tokohidayat.com
+        use_backend srv1 if headercheck1
+
+        default_backend webs
+
+backend webs 
+        mode http
+        balance roundrobin
+        option httpchk HEAD /testpage HTTP/1.1\r\nHost:\ tokohodayat.com
+        http-check expect status 200
+        http-check expect rstatus ^2(/d){2}$
+        http-check expect rstring succes
+        server webserver1 192.168.0.129:80 check
+        server webserver2 192.168.0.130:80 check
+
+backend srv1
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.131:80 check maxconn 20 slowstart 10s

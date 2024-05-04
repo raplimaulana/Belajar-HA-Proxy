@@ -1,0 +1,50 @@
+frontend http80
+        bind *:80
+        mode http80
+
+        acl headercheck1 req.hdr(User-Agent) -i -m reg (Android|Iphone)
+        use_backend srv1 if headercheck1 || !headercheck2
+
+        acl headercheck1 req.hdr(User-Agent) -i -m reg (Android|Iphone)
+        use_backend srv2 if headercheck1 headercheck2
+
+        acl check_domain1 hdr(Host) -i -m str tokohidayat.com
+        redirect prefix|location|scheme
+
+        #setiap akses tokohidayat.id di redirect ke tokohidayat.com
+        acl check_domain1 hdr(Host) -i -m str tokohidayat.id
+        redirect prefix http://tokohidayat.com if check_domain1 
+
+        acl check_domain2 hdr(Host) -i -m str tokohidayat.id
+        redirect location http://tokohidayat.com if check_domain2 
+        
+        acl check_domain3 hdr(Host) -i -m str tokohidayat.id
+        redirect prefix http://tokohidayat.com drop-query code 301 if check_domain3
+
+        #192.168.1.0/24 "WE"
+        #192.168.2.0/24 "EA"
+        #192.168.3.0/24 "NO"
+        #192.168.4.0/24 "SO"
+
+        http-request set-header X-City %[src,map_ip(/etc/haproxy/geolocation.txt)]
+        acl is-west req-hdr(X-City) -i -m sub we
+        acl is-east req-hdr(X-City) -i -m sub ea
+        acl is-north req-hdr(X-City) -i -m sub no
+        acl is-south req-hdr(X-City) -i -m sub so
+
+        redirect location http://west.tokohidayat.com if is-west
+        redirect location http://west.tokohidayat.com if is-east
+        redirect location http://west.tokohidayat.com if is-north 
+        redirect location http://west.tokohidayat.com if is-south      
+        default_backend webs
+
+backend webs 
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.129:80 check maxconn 20 slowstart 10s
+        server webserver2 192.168.0.130:80 check maxconn 20 slowstart 10s
+
+backend srv1
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.131:80 check maxconn 20 slowstart 10s

@@ -1,0 +1,40 @@
+frontend http80
+        bind *:80
+        mode http 
+        log-tag default-http80
+        option httplog
+
+        acl stat path_beg /ss
+        use backend stats-page if stat
+
+userlist Trusted
+        group admin users rapli
+        group normal users arya
+        user rapli insecure-password 12345
+        user maulana password 8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+
+
+backend stats-page
+        mode http
+        log global
+        maxconn 10
+        stats enable
+        stats auth admin:1234
+        stats refresh 30s
+        stats scope .
+        #admin
+        stats admin if TRUE
+
+backend stats-page-2
+        mode http
+        log global
+        maxconn 10
+        acl AUTH http_auth(Trusted)
+        acl AUTH_ADMIN http_auth_group(Trusted) admin
+        stats http-request auth unless AUTH
+        stats admin if AUTH_ADMIN
+        stats enable
+        stats uri /ss
+        stats refresh 30s
+        stats hide-version
+        

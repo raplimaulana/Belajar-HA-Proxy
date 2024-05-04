@@ -1,0 +1,23 @@
+$mkpasswd -m sha-256 123456
+8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+
+-------------------------------
+
+defaults 
+        log     global
+        mode    http
+        option  dontlognull
+        timeout connect 5s
+        timeout client 50s
+        timeout server 50s
+
+userlist Trusted
+        user rapli insecure-password 12345
+        user maulana password 8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+
+backend prime
+        mode http
+        #login
+        http-request auth unless { http_auth(Trusted) }
+        server webserver1 192.168.0.131:80 check 
+        server webserver1 192.168.0.131:80 check 

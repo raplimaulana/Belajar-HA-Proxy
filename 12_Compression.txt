@@ -1,0 +1,9 @@
+backend prime
+        mode http
+        server webserver1 192.168.0.131:80 check 
+        server webserver1 192.168.0.131:80 check 
+
+        compression algo gzip deflate
+        compression type text/html text/plain text/css text/javascript application/javascript
+        compression offload
+        

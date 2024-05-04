@@ -1,0 +1,136 @@
+vim .ssh/config
+
+host web1
+    hostname 192.168.0.131
+    port 22
+    user debian
+    proxyjump ha
+
+host web2
+    hostname 192.168.0.130
+    port 22
+    user debian
+    proxyjump ha 
+
+host ha1
+    hostname 192.168.0.232
+    port 22
+    user debian
+
+host ha2
+    hostname 192.168.0.13
+    port 22
+    user debian
+    proxyjump ha
+
+host *
+    ServerAliveInterval 240
+    ServerAliveCountMax 2
+----------------------------------
+
+$apt install keepalived
+
+----------------------------------
+
+$vim keepalived.conf 
+
+global_defs {
+    router_id haproxy2
+}
+
+vrrp_script chk_haproxy {
+    script "/usr/bin/killall -0 haproxy"
+    interval 2
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    priority 100
+    virtual_router_id 225
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass 1234
+    }
+#    unicast_src_ip 192.168.0.232
+#    unicast_peer {
+#       192.168.0.13
+#    }
+    virtual_ipaddress {
+        77.237.77.121
+    }
+    track_script {
+        chk_haproxy()
+    }
+}
+
+-------------------------------------
+$vim keepalived.conf 
+
+global_defs {
+    router_id haproxy2
+}
+
+vrrp_script chk_haproxy {
+    script "/usr/bin/killall -0 haproxy"
+    interval 2
+}
+
+vrrp_instance HAP_68 {
+    state BACKUP
+    interface eth0
+    priority 99
+    virtual_router_id 225
+    advert_int 1
+
+    authentication {
+        auth_type PASS
+        auth_pass 1234
+    }
+    unicast_src_ip 192.168.0.13
+    unicast_peer {
+        192.168.0.232
+    }
+    virtual_ipaddress {
+        77.237.77.121
+    }
+    track_interface {
+        eth0 weight 2
+    }
+    track_script {
+        chk_haproxy
+    }
+}
+
+-----------------------
+
+rsync -azvP -e 'ssh -p 22' /etc/haproxy/ root@192.168.0.13:/etc/haproxy/
+
+-----------------------
+defaults 
+        log     global
+        mode    http
+        option  dontlognull
+        timeout connect 5s
+        timeout client 50s
+        timeout server 50s
+
+userlist Trusted
+        user rapli insecure-password 12345
+        user maulana password 8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92
+
+peers mypeer
+        peer haproxy 192.168.0.232:50000
+        peer haproxy2 192.268.0.13:50000
+
+frontend http80
+        bind *:80
+        mode http 
+        log-tag default-http80
+        option httplog
+        
+        stick-table type ip size 100k expire 30m store conn_cur
+        #stick-table type ip size 100k expire 30m peers mypeer store conn_cur
+        http-request track-sc0 src

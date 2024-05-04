@@ -1,0 +1,82 @@
+log /dev/log    local0
+log /dev/log    local1 noticech
+chroot /var/lib/haproxy
+stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+stats timeout 30s 
+user haproxy 
+daemon
+nbproc 1
+nbthread 4
+cpu-map 1/1 0
+cpu-map 1/2 1
+cpu-map 1/3 2
+cpu-map 1/4 3
+#default SSL material locations 
+ca-base /etc/ssl/certs
+crt-base /etc/ssl/private
+
+ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+ssl-default-bind-ciphersuistes TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20-POLY1305_SHA256
+ssl-default-bind-options ssl-min-server TLSv1.2 no-tls-tickets
+
+default_server
+        log     global
+        mode    http
+        #option httplog
+        option  dontlognull
+
+frontend http80
+        bind *:80
+        mode http80
+
+        acl primesrv srv_is_up(prime_db/db1)
+        use_backend bk-cookie-persistence if primesrv
+        default_backend webs
+
+backend bk-cookie-persistence
+        mode http
+        cookie SERVERUSED insert indirect nocache
+        #cookie JSESSESIONID prefix nocache
+        server webserver1 192.168.0.130:80 check cookie web1
+        server webserver1 192.168.0.131:80 check cookie web2
+
+backend bk-sticktable-persistence
+        mode http
+        stick-table type ip size 1m expire 30m
+        #stick match src
+        #stick store-request src
+        stick on src
+        option redispatch
+        server webserver1 192.168.0.132:80 check check inter 2m fall 3 rise 5
+        server webserver1 192.168.0.133:80 check
+
+backend bk-sticktable-from-another-bk
+        mode http
+        stick-table type ip size 1m expire 30m
+        #stick match src table bk-sticktable-persistence
+        #stick store-request src table bk-sticktable-persistence
+        stick in src table bk-sticktable-persistence
+        server webserver1 192.168.0.134:80 check
+        server webserver1 192.168.0.135:80 check
+
+backend bk-cookie-force-persistence
+        mode http
+        cookie SERVERUSED insert indirect nocache
+        option redispatch
+        option httpchk
+        server webserver1 192.168.0.136:80 check cookie web1 
+        server webserver1 192.168.0.137:80 check cookie web2
+        use-server webserver1 if {url_param(srv) eq 1}
+        use-server webserver2 if {url_param(srv) eq 2}
+        force-persist if {url_param(force) eq true}
+        #force-persist if {req.cook(force) eq true}
+        #force-persist if {src 10.0.0.0/24}
+
+backend bk-cookie-ignore-persistence
+        mode http
+        cookie SERVERUSED insert indirect nocache
+        option redispatch
+        option httpchk
+        server webserver1 192.168.0.138:80 check cookie web1 
+        server webserver1 192.168.0.139:80 check cookie web2
+        ignore-persist if {path_end .css .js .png .mov}

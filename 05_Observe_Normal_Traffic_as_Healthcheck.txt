@@ -1,0 +1,28 @@
+frontend http80
+        bind *:80
+        mode http80
+
+        acl primesrv srv_is_up(prime_db/db1)
+        use_backend prime if primesrv
+        default_backend webs
+
+backend web-main1
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.130:80 check inter 2m fall 3 rise 5
+        server webserver1 192.168.0.131:80 check inter 2m fall 3 rise 5
+
+backend web-main2
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.132:80 check inter 2m fall 3 rise 5
+        server webserver1 192.168.0.133:80 check inter 2m fall 3 rise 5
+        default_server inter 2m fall rise 5 observe layer7 error-limit 50 on-error mark-down
+        #default_server inter 2m fall rise 5 minconn 100 maxconn 500 slowstart 20s observe layer7 error-limit 50 on-error mark-down
+
+backend db-main
+        mode tcp
+        balance roundrobin
+        server db1 192.168.0.134:80 check
+        server db2 192.168.0.135:80 check
+        default server inter 2m fall 3 rise 5 observe layer4 error-limit 1

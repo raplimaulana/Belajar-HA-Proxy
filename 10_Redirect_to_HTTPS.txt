@@ -1,0 +1,11 @@
+frontend http80
+        bind *:80
+        mode http 
+        log-tag default-http80
+        option httplog
+
+        acl letsencrypyt path_beg /.well-known/acme-challange/
+        use_backend certbot if letsencrypyt
+
+        redirect scheme https if !{ ssl_fc } 
+        redirect scheme https code 308 if !{ ssl_fc } !{ letsencrypyt }

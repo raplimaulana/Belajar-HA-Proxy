@@ -1,0 +1,54 @@
+frontend http443
+        bind *:443 ssl crt /certs/cert-main.pem 
+        mode http 
+        default_backend prime
+
+##SSL passthrough from apache
+frontend http443
+        bind *:443 
+        mode tcp
+        default_backend prime-ssl-pass
+
+frontend http80
+        bind *:80
+        mode http 
+        log-tag default-http80
+        option httplog
+        
+        acl letsencrypyt path_beg /.well-known/acme-challange/
+        use_backend certbot if letsencrypyt
+
+backend certbot
+        server certbot-ser1 127.0.0.1:8080
+
+backend prime-ssl-pass
+        mode tcp
+        server webserver1 192.168.0.131:443 check
+        server webserver1 192.168.0.131:443 check
+
+backend prime-reencrypt
+        mode http
+        server webserver1 192.168.0.131:443 check ssl verify none
+        server webserver1 192.168.0.131:443 check ssl verify none
+
+backend certbot
+        mode http
+        server webserver1 192.168.0.131:80 check
+        server webserver1 192.168.0.131:80 check
+
+-----------------------------------------
+
+vim httpd.conf
+
+server {
+    listen 80 default_server;
+    listen 443 ssl;
+
+    
+    #RSA certificate
+    ssl_certificate /etc/letsencrypyt/live/visudo.ir/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypyt/live/visudo.ir/privkey.pem;
+    ssl_protocols TLSv1.3;
+
+    root /var/www/html;
+}

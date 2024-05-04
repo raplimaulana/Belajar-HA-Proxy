@@ -1,0 +1,45 @@
+frontend http80
+        bind *:80
+        mode http80
+
+        acl lt3s nbsrv(prime) lt 3
+        use_backend backup if lt3s
+        default_backend prime
+
+        acl primesrv srv_is_up(prime_db/db1)
+        use_backend prime if primesrv
+        #default_backend webs
+
+backend webs 
+        mode http
+        balance roundrobin
+        option httpchk 
+        server webserver1 192.168.0.129:80 check
+        server webserver2 192.168.0.130:80 check
+        server webserver3 192.168.0.131:80 backup
+        server webserver4 192.168.0.132:80 backup
+
+backend prime 
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.133:80 check
+        server webserver1 192.168.0.134:80 check
+        server webserver1 192.168.0.135:80 check
+
+backend backup
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.136:80 check
+        server webserver1 192.168.0.137:80 check
+        server webserver1 192.168.0.138:80 check
+
+#acl primesrv
+backend web-main
+        mode http
+        balance roundrobin
+        server webserver1 192.168.0.139:80 track db-main/db1
+
+backend db-main
+        mode tcp
+        balance roundrobin
+        server db1 192.168.0.140:80 check
